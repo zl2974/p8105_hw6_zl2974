@@ -173,4 +173,52 @@ birthweight_cv %>%
   ggplot(aes(x = model, y = rmse)) +
   geom_violin()
 ```
+\ My model is generate via both-way stepwise variable selection. The second example 
+model has lower rmse compared to the first model, and my model has lower rmse comapred
+ to both example model. 
+ 
+ # Problem 3
+ 
+ Load data
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
+ Look at the distribution
+```{r}
+weather_df %>% 
+  ggplot(aes(x = tmin, y = tmax))+
+  geom_point(alpha = 0.4)+
+  geom_smooth(method = "lm")
+```
+ 
+Produce bootstrap sample
+```{r}
+set.seed(1)
+weather_bt =
+  tibble(
+    id = 1:100,
+    data = rerun(
+      100,
+      weather_df %>% 
+        sample_n(size = nrow(.),replace = T)
+    )
+  ) %>% 
+  mutate(
+    md = 
+      map(.x = data,
+          ~lm(tmax~tmin,data = .x)),
+    md = map(md,broom::tidy)
+  ) %>% 
+  unnest(md)
+```
 
