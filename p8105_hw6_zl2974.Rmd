@@ -79,3 +79,82 @@ homicide_df %>%
 
 
 # Problem 2
+
+Import data
+```{r}
+birthweight =
+  read_csv(here::here("data/birthweight.csv")) %>%
+  janitor::clean_names() %>%
+  mutate(
+    across(
+      c("frace", "mrace"),
+      ~ case_when(
+        .x == 1 ~ "White",
+        .x == 2 ~ "Black",
+        .x == 3 ~ "Asian",
+        .x == 4 ~ "Puero Rican",
+        .x == 8 ~ "Other",
+        .x == 9 ~ " Unknown"
+      )
+    ),
+    across(where(is.character), as.factor),
+    malform = case_when(malform == 0 ~ "absent",
+                        malform == 1 ~ "present"),
+    malform = as.factor(malform),
+    babysex = case_when(babysex == 1 ~ "male",
+                        babysex == 2 ~ "female") %>% as.factor()
+  )
+
+
+birthweight %>% skimr::skim_without_charts()
+```
+
+We don't know what we interest in, so I just assume to predict birthweight, so 
+let first make our data in to cross validation partitions.
+```{r cache=T}
+set.seed(1)
+birthweight_cv =
+  modelr::crossv_mc(birthweight, 30, id = "id") %>%
+  mutate(
+    md_step =
+      map(.x = train,  ~ do.call("glm", list(bwt ~ ., data = .x))),
+    md_step = map(.x = md_step,
+                  ~ step(
+                    .x,
+                    direction = "both",
+                    scope = list(lower = . ~ 1,
+                                 upper = . ~ . ^ 2),
+                    trace = 0
+                  )),
+    #is the stepwise model all alike across all cv train?
+    md_eg1 =
+      map(.x = train,  ~ lm(bwt ~ blength + gaweeks, data = .x)),
+    md_eg2 =
+      map(.x = train,  ~ lm(bwt ~ blength * bhead * babysex, data = .x)),
+    #Fitted the model, now how to verify the prediction?
+    rmse_step =
+      map2_dbl(.x = md_step,
+               .y = test,
+               ~ modelr::rmse(.x, .y)),
+    rmse_eg1 =
+      map2_dbl(.x = md_eg1,
+               .y = test,
+               ~ modelr::rmse(.x, .y)),
+    rmse_eg2 =
+      map2_dbl(.x = md_eg2,
+               .y = test,
+               ~ modelr::rmse(.x, .y))
+  )
+
+birthweight_cv %>%
+  mutate(across(starts_with("rmse"), as.numeric)) %>%
+  pivot_longer(
+    starts_with("rmse"),
+    values_to = "rmse",
+    names_to =  "model",
+    names_prefix = "rmse_"
+  ) %>%
+  ggplot(aes(x = model, y = rmse)) +
+  geom_violin()
+```
+
