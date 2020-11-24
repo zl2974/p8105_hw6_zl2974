@@ -247,8 +247,8 @@ weather_bt %>%
   geom_density()
 ```
 
-\ The r^2 follows a left-tailed distribution, as showed in the scatter plot, tmax and tmin is strongly linear associated at a glance. As such, their linear
- models' r^2 should be concentrated in the right side of the support regardless
-  central limit theorem.
+\ The r^2 follows approximately normal distribution. By central limit theorem 
+the sampling distribution of R^2 will follow normal distribution with mean equal
+ to true R^2.
  
 \ The log(beta0hat and the beta1hat) follows an approximately normal distribution, follows the central limit theorem.
