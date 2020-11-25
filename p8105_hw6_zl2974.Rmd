@@ -31,8 +31,8 @@ scale_fill_discrete = scale_fill_viridis_d
 
 Read in the data.
 ```{r}
-homicide_df = 
-  read_csv("data/data-homicides-master/homicide-data.csv") %>% 
+homicide_df =
+  read_csv("data/data-homicides-master/homicide-data.csv") %>%
   mutate(
     city_state = str_c(city, state, sep = "_"),
     resolved = case_when(
@@ -40,14 +40,16 @@ homicide_df =
       disposition == "Open/No arrest"        ~ "unsolved",
       disposition == "Closed by arrest"      ~ "solved"
     ),
-    resolved = forcats::fct_relevel(resolved,"unsolved"),
+    resolved = forcats::fct_relevel(resolved, "unsolved"),
     victim_age = as.numeric(victim_age),
     victim_sex = as.factor(victim_sex)
-  ) %>% 
-  select(-city,-state,-victim_last,-victim_first,-lon,-lat) %>% 
-  filter(!str_detect(city_state,"Tulsa|Dallas|Phoenix|Kansas"),
-         victim_race %in% c("White","Black"),
-         victim_sex %in% c("Male","Female")) %>% 
+  ) %>%
+  select(-city,-state,-victim_last,-victim_first,-lon,-lat) %>%
+  filter(
+    !str_detect(city_state, "Tulsa|Dallas|Phoenix|Kansas"),
+    victim_race %in% c("White", "Black"),
+    victim_sex %in% c("Male", "Female")
+  ) %>%
   nest(c(-city_state))
 ```
 
@@ -63,17 +65,17 @@ homicide_df =
       family = binomial()
     )
   ),
-  result  = map(log, broom::tidy)) %>% 
-  select(-data) %>% 
-  unnest(result) %>% 
+  result  = map(log, broom::tidy)) %>%
+  select(-data) %>%
+  unnest(result) %>%
   mutate(ci = map2(.x = log,
-                               .y = term,
-                               ~confint(.x,.y))) %>% 
-  select(city_state,term,estimate,ci) %>% 
+                   .y = term,
+                   ~ confint(.x, .y))) %>%
+  select(city_state, term, estimate, ci) %>%
   filter(term == "victim_raceWhite")
 
-homicide_df %>% 
-  head() %>% 
+homicide_df %>%
+  head() %>%
   knitr::kable()
 ```
 
@@ -111,38 +113,32 @@ birthweight %>% skimr::skim_without_charts()
 
 We don't know what we interest in, so I just assume to predict birthweight, so 
 let first make our data in to cross validation partitions.
-```{r cache=T}
-md_step =
+```{r my_model, cache=T}
+step_model =
   glm(bwt ~ ., data = birthweight) %>% 
   step(direction = "both",
                     scope = list(lower = . ~ 1,
                                  upper = . ~ . ^ 2),
                     trace = 0)
 
-summary(md_step)
+summary(step_model)
 
-md_step =
-  terms(md_step) %>% 
+step_model =
+  terms(step_model) %>% 
   attr("term.labels") %>% 
   str_c(.,collapse = "+") %>% 
   str_c("bwt~",.) %>% 
   as.formula()
+```
 
+
+```{r cross_validating, cache=T}
 set.seed(1)
 birthweight_cv =
   modelr::crossv_mc(birthweight, 100, id = "id") %>%
   mutate(
     md_step =
-      map(.x = train,  ~ do.call("glm", list(bwt ~ ., data = .x))),
-    md_step = map(.x = md_step,
-                  ~ step(
-                    .x,
-                    direction = "both",
-                    scope = list(lower = . ~ 1,
-                                 upper = . ~ . ^ 2),
-                    trace = 0
-                  )),
-    #is the stepwise model all alike across all cv train?
+      map(.x = train,  ~ do.call("glm", list(step_model, data = .x))),
     md_eg1 =
       map(.x = train,  ~ lm(bwt ~ blength + gaweeks, data = .x)),
     md_eg2 =
@@ -181,24 +177,26 @@ model has lower rmse compared to the first model, and my model has lower rmse co
  
  Load data
 ```{r noaa, cache=T}
-weather_df = 
+weather_df =
   rnoaa::meteo_pull_monitors(
     c("USW00094728"),
-    var = c("PRCP", "TMIN", "TMAX"), 
+    var = c("PRCP", "TMIN", "TMAX"),
     date_min = "2017-01-01",
-    date_max = "2017-12-31") %>%
+    date_max = "2017-12-31"
+  ) %>%
   mutate(
     name = recode(id, USW00094728 = "CentralPark_NY"),
     tmin = tmin / 10,
-    tmax = tmax / 10) %>%
+    tmax = tmax / 10
+  ) %>%
   select(name, id, everything())
 ```
 
  Look at the distribution
 ```{r}
-weather_df %>% 
-  ggplot(aes(x = tmin, y = tmax))+
-  geom_point(alpha = 0.4)+
+weather_df %>%
+  ggplot(aes(x = tmin, y = tmax)) +
+  geom_point(alpha = 0.4) +
   geom_smooth(method = "lm")
 ```
  
@@ -226,25 +224,23 @@ weather_bt =
 weather_bt %>% head() %>% knitr::kable()
 ```
 Examine Bootstrap result
-```{r boostrap_result}
-weather_bt %>% 
-  distinct(id,r_square) %>% 
-  ggplot(aes(x = r_square))+
-  geom_density()
+```{
+r boostrap_result
+}
+weather_bt %>%
+distinct(id, r_square) %>%
+ggplot(aes(x = r_square)) +
+geom_density()
 
-weather_bt %>% 
-  select(id,term,estimate) %>% 
-  pivot_wider(
-    names_from = term,
-    values_from = estimate
-  ) %>% 
-  janitor::clean_names() %>% 
-  mutate(
-    log_beta =
-      log(tmin*intercept)
-  ) %>% 
-  ggplot(aes(x = log_beta))+
-  geom_density()
+weather_bt %>%
+select(id, term, estimate) %>%
+pivot_wider(names_from = term,
+values_from = estimate) %>%
+janitor::clean_names() %>%
+mutate(log_beta =
+log(tmin * intercept)) %>%
+ggplot(aes(x = log_beta)) +
+geom_density()
 ```
 
 \ The r^2 follows approximately normal distribution. By central limit theorem 
