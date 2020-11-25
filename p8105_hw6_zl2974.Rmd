@@ -96,7 +96,7 @@ birthweight =
         .x == 3 ~ "Asian",
         .x == 4 ~ "Puero Rican",
         .x == 8 ~ "Other",
-        .x == 9 ~ " Unknown"
+        .x == 9 ~ "Unknown"
       )
     ),
     across(where(is.character), as.factor),
@@ -135,7 +135,7 @@ step_model =
 ```{r cross_validating, cache=T}
 set.seed(1)
 birthweight_cv =
-  modelr::crossv_mc(birthweight, 100, id = "id") %>%
+  modelr::crossv_mc(birthweight, 200, id = "id") %>%
   mutate(
     md_step =
       map(.x = train,  ~ do.call("glm", list(step_model, data = .x))),
@@ -173,9 +173,10 @@ birthweight_cv %>%
 model has lower rmse compared to the first model, and my model has lower rmse comapred
  to both example model. 
  
- # Problem 3
+# Problem 3
  
- Load data
+Load data
+ 
 ```{r noaa, cache=T}
 weather_df =
   rnoaa::meteo_pull_monitors(
@@ -192,7 +193,8 @@ weather_df =
   select(name, id, everything())
 ```
 
- Look at the distribution
+Look at the distribution
+ 
 ```{r}
 weather_df %>%
   ggplot(aes(x = tmin, y = tmax)) +
@@ -201,6 +203,7 @@ weather_df %>%
 ```
  
 Produce bootstrap sample
+
 ```{r bootstraping, cache=T}
 set.seed(1)
 weather_bt =
@@ -223,24 +226,24 @@ weather_bt =
 
 weather_bt %>% head() %>% knitr::kable()
 ```
+
 Examine Bootstrap result
-```{
-r boostrap_result
-}
+
+```{r boostrap_result}
 weather_bt %>%
-distinct(id, r_square) %>%
-ggplot(aes(x = r_square)) +
-geom_density()
+  distinct(id, r_square) %>%
+  ggplot(aes(x = r_square)) +
+  geom_density()
 
 weather_bt %>%
-select(id, term, estimate) %>%
-pivot_wider(names_from = term,
-values_from = estimate) %>%
-janitor::clean_names() %>%
-mutate(log_beta =
-log(tmin * intercept)) %>%
-ggplot(aes(x = log_beta)) +
-geom_density()
+  select(id, term, estimate) %>%
+  pivot_wider(names_from = term,
+              values_from = estimate) %>%
+  janitor::clean_names() %>%
+  mutate(log_beta =
+           log(tmin * intercept)) %>%
+  ggplot(aes(x = log_beta)) +
+  geom_density()
 ```
 
 \ The r^2 follows approximately normal distribution. By central limit theorem 
