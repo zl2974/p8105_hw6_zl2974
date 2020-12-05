@@ -232,8 +232,29 @@ Examine Bootstrap result
 ```{r boostrap_result}
 weather_bt %>%
   distinct(id, r_square) %>%
+  summarise(lower = quantile(r_square, 0.025),
+            upper = quantile(r_square, 0.975)) %>%
+  knitr::kable(caption = "2.5% and 97.5% quantile of R^2")
+
+weather_bt %>%
+  select(id, term, estimate) %>%
+  pivot_wider(names_from = term,
+              values_from = estimate) %>%
+  janitor::clean_names() %>%
+  mutate(log_beta =
+           log(tmin * intercept)) %>%
+  summarise(lower = quantile(log_beta, 0.025),
+            upper = quantile(log_beta, 0.975)) %>%
+  knitr::kable(caption = "2.5% and 97.5% quantile of log(beta*beta)")
+
+
+weather_bt %>%
+  distinct(id, r_square) %>%
   ggplot(aes(x = r_square)) +
-  geom_density()
+  geom_density()+
+  labs(
+    title = "Distribution of R^2"
+  )
 
 weather_bt %>%
   select(id, term, estimate) %>%
@@ -243,7 +264,10 @@ weather_bt %>%
   mutate(log_beta =
            log(tmin * intercept)) %>%
   ggplot(aes(x = log_beta)) +
-  geom_density()
+  geom_density() +
+  labs(
+    title = "Distribution of log(beta * beta)"
+  )
 ```
 
 \ The r^2 follows approximately normal distribution. By central limit theorem 
